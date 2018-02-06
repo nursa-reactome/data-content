@@ -32,7 +32,7 @@
 
     <properties>
         <deploymentPath>/</deploymentPath>
-        <graph.core>1.0.8</graph.core>
+        <graph.core>1.1.2</graph.core>
         <reactome.search.core>1.0.1</reactome.search.core>
         <interactors.core>1.0.8</interactors.core>
         <spring.version>4.2.4.RELEASE</spring.version>
@@ -43,7 +43,11 @@
         <maven.war.version>2.6</maven.war.version>
         <jdk.version>1.8</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+        <!-- Avoid Maven complaint about missing web.xml
+            (cf. https://stackoverflow.com/questions/31835033/web-xml-is-missing-and-failonmissingwebxml-is-set-to-true)
+             -->
+        <failOnMissingWebXml>false</failOnMissingWebXml>
+        
         <maven.site.version>3.4</maven.site.version>
         <jackrabbit.version>2.10</jackrabbit.version>
         <maven.javadoc.version>2.10.3</maven.javadoc.version>
