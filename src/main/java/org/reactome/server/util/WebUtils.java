@@ -2,15 +2,11 @@ package org.reactome.server.util;
 
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Whitelist;
-import org.reactome.server.interactors.model.Interaction;
-import org.reactome.server.interactors.model.InteractionDetails;
-import org.reactome.server.interactors.util.InteractorConstant;
-import org.reactome.server.interactors.util.Toolbox;
+import org.springframework.ui.ModelMap;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author Guilherme S Viteri <gviteri@ebi.ac.uk>
@@ -36,28 +32,10 @@ public class WebUtils {
         return null;
     }
 
-    /**
-     * Prepare interaction evidences links.
-     * Gets all interaction evidences of a given interactor and build the URL
-     * Having all this logic in JSTL wouldn't be clear.
-     *
-     * @return map as accession and the URL
-     */
-    public static Map<String, String> prepareEvidencesURLs(List<Interaction> interactions) {
-        Map<String, String> evidencesUrlMap = new HashMap<>();
-        List<String> evidenceIds = new ArrayList<>();
-        if (interactions != null) {
-            for (Interaction interaction : interactions) {
-                List<InteractionDetails> evidences = interaction.getInteractionDetailsList();
-                for (InteractionDetails evidence : evidences) {
-                    evidenceIds.add(evidence.getInteractionAc());
-                }
-
-                evidencesUrlMap.put(interaction.getInteractorB().getAcc(), Toolbox.getEvidencesURL(evidenceIds, InteractorConstant.STATIC));
-                evidenceIds.clear();
-            }
-        }
-
-        return evidencesUrlMap;
+    public static String noDetailsFound(ModelMap model, HttpServletResponse response, String term) {
+        model.addAttribute("term", term);
+        model.addAttribute("title", "No details found for " + term);
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        return "graph/noDetailsFound";
     }
 }

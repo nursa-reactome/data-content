@@ -1,27 +1,31 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
-<%--@elvariable id="databaseObject" type="org.reactome.server.graph.domain.model.Pathway"--%>
-<%--@elvariable id="literature" type="org.reactome.server.graph.domain.model.LiteratureReference"--%>
-
 <c:import url="../header.jsp"/>
-
-<div class="ebi-content">
-
-    <div class="grid_24">
-
+    <div class="favth-col-lg-12 favth-col-md-12 favth-col-sm-12 favth-col-xs-12">
         <c:import url="title.jsp"/>
 
         <c:if test="${not empty topLevelNodes}">
             <c:import url="locationsInThePWB.jsp"/>
         </c:if>
 
+        <c:if test="${hasEHLD}">
+            <fieldset class="fieldset-details">
+                <legend>Diagram preview</legend>
+                <div class="text-center">
+                    <a href="/PathwayBrowser/#/${databaseObject.stId}">
+                        <img src="/download/current/ehld/${databaseObject.stId}.svg" alt="${databaseObject.displayName}" class="ehld">
+                    </a>
+                </div>
+            </fieldset>
+        </c:if>
+
         <c:if test="${not empty databaseObject.summation}">
             <fieldset class="fieldset-details">
                 <legend>Summation</legend>
-                <div class="wrap overflow">
+                <div class="details-summation">
                     <c:forEach var="summation" items="${databaseObject.summation}">
-                        <p style="text-align: justify; margin-right: 8px;">${summation.text}</p>
+                        <p>${summation.text}</p>
                     </c:forEach>
                 </div>
             </fieldset>
@@ -45,28 +49,9 @@
             <c:import url="regulationDetails.jsp"/>
         </c:if>
 
+        <%--For those that ARE in Reactome, for those that ARE NOT in Reactome, check graph/interactors.jsp--%>
         <c:if test="${not empty interactions}">
             <c:import url="interactionDetails.jsp"/>
         </c:if>
     </div>
-</div>
-
-
-<div class="clear"></div>
-
-<%-- Adding some fixed spaces between last content panel and footer --%>
-<div style="height: 40px;">&nbsp;</div>
-
-</div>            <%--A weird thing to avoid problems--%>
 <c:import url="../footer.jsp"/>
-
-
-<%--
-ALIGNED DIV MODEL WITH ORANGE BORDER
-
-<div class="fieldset-pair-container">
-    <div class="label"></div>
-    <div class="field"></div>
-    <div class="clear"></div>
-</div>
---%>

@@ -5,11 +5,13 @@
     <artifactId>data-content</artifactId>
 
     <packaging>war</packaging>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <name>content</name>
 
-    <description>The Reactome Content Service ... </description>
-    <url>https://github.com/reactome-pwp/content-service</url>
+    <description>
+        The Reactome Data Content provides access to the search features plus the schema classes definition and instance browsers among others
+    </description>
+    <url>https://github.com/reactome-pwp/data-content</url>
     <organization>
         <name>The European Bioinformatics Institute</name>
         <url>http://www.ebi.ac.uk/</url>
@@ -17,25 +19,30 @@
 
     <developers>
         <developer>
-            <id>fkorn</id>
-            <name>Florian Korninger</name>
-            <email>fkorn@ebi.ac.uk</email>
-            <organization>http://www.ebi.ac.uk/</organization>
-        </developer>
-        <developer>
             <id>gviteri</id>
             <name>Guilherme Viteri</name>
             <email>gviteri@ebi.ac.uk</email>
+            <organization>http://www.ebi.ac.uk/</organization>
+        </developer>
+        <developer>
+            <id>fabregat</id>
+            <name>Antonio Fabregat</name>
+            <email>fabregat@ebi.ac.uk</email>
+            <organization>http://www.ebi.ac.uk/</organization>
+        </developer>
+        <developer>
+            <id>fkorn</id>
+            <name>Florian Korninger</name>
+            <email>fkorn@ebi.ac.uk</email>
             <organization>http://www.ebi.ac.uk/</organization>
         </developer>
     </developers>
 
     <properties>
         <deploymentPath>/</deploymentPath>
-        <graph.core>1.1.2</graph.core>
-        <reactome.search.core>1.0.1</reactome.search.core>
-        <interactors.core>1.0.8</interactors.core>
-        <spring.version>4.2.4.RELEASE</spring.version>
+        <graph.core>1.1.10</graph.core>
+        <reactome.search.core>1.1.1</reactome.search.core>
+        <spring.version>4.3.10.RELEASE</spring.version>
         <javax.servlet.version>4.0.0-b01</javax.servlet.version>
         <jackson.version>2.7.3</jackson.version>
         <swagger.version>2.2.2</swagger.version>
@@ -67,12 +74,6 @@
             <groupId>org.reactome.server.search</groupId>
             <artifactId>search-core</artifactId>
             <version>${reactome.search.core}</version>
-        </dependency>
-        <!-- Reactome Interactor-core -->
-        <dependency>
-            <groupId>org.reactome.server.interactors</groupId>
-            <artifactId>interactor-core</artifactId>
-            <version>${interactors.core}</version>
         </dependency>
         <!--Spring-->
         <dependency>
@@ -122,7 +123,7 @@
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.7.3</version>
+            <version>1.10.2</version>
         </dependency>
 
         <dependency>
@@ -135,6 +136,12 @@
             <groupId>org.reactome.server.utils</groupId>
             <artifactId>reactome-utils</artifactId>
             <version>1.0.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.mobile</groupId>
+            <artifactId>spring-mobile-device</artifactId>
+            <version>1.1.5.RELEASE</version>
         </dependency>
 
     </dependencies>
@@ -188,7 +195,7 @@
                 <version>2.2</version>
                 <configuration>
                     <path>${deploymentPath}</path>
-                    <port>8080</port>
+                    <port>8484</port>
                 </configuration>
             </plugin>
             <plugin>
@@ -213,25 +220,6 @@
             </plugin>
         </plugins>
     </build>
-
-
-
-    <!--Configures the distribution to nexus repository -->
-    <distributionManagement>
-        <repository>
-            <id>nexus-release</id>
-            <url>http://localhost:8081/nexus/content/repositories/releases/</url>
-        </repository>
-        <snapshotRepository>
-            <uniqueVersion>false</uniqueVersion>
-            <id>nexus-snapshot</id>
-            <url>http://localhost:8081/nexus/content/repositories/snapshots/</url>
-        </snapshotRepository>
-        <site>
-            <id>nexus-site</id>
-            <url>dav:http://localhost:8081/nexus/content/sites/site/</url>
-        </site>
-    </distributionManagement>
 
     <!--This configuration is needed so that javadoc is included in maven site-->
     <reporting>

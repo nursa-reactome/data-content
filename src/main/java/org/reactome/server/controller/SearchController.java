@@ -1,10 +1,11 @@
 package org.reactome.server.controller;
 
 import org.apache.commons.lang.StringUtils;
+import org.reactome.server.graph.service.GeneralService;
 import org.reactome.server.search.domain.FacetMapping;
-import org.reactome.server.search.domain.InteractorEntry;
 import org.reactome.server.search.domain.Query;
 import org.reactome.server.search.domain.SearchResult;
+import org.reactome.server.search.domain.TargetResult;
 import org.reactome.server.search.exception.SolrSearcherException;
 import org.reactome.server.search.service.SearchService;
 import org.reactome.server.util.MailService;
@@ -14,9 +15,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.reactome.server.util.WebUtils.cleanReceivedParameter;
 import static org.reactome.server.util.WebUtils.cleanReceivedParameters;
@@ -32,43 +41,33 @@ class SearchController {
 
     private static final Logger errorLogger = LoggerFactory.getLogger("errorLogger");
     private static final Logger infoLogger = LoggerFactory.getLogger("infoLogger");
-
-    private SearchService searchService;
-    private MailService mailService;
-
     private static final int rowCount = 30;
-   // private Map<Long, InteractorResource> interactorResourceMap = new HashMap<>();
-
     private static final String SPECIES_FACET = "species_facet";
     private static final String TYPES_FACET = "type_facet";
     private static final String KEYWORDS_FACET = "keyword_facet";
     private static final String COMPARTMENTS_FACET = "compartment_facet";
-
     private static final String Q = "q";
     private static final String SPECIES = "species";
     private static final String TYPES = "types";
     private static final String KEYWORDS = "keywords";
     private static final String COMPARTMENTS = "compartments";
-
     private static final String TITLE = "title";
-    private static final String ENTRY = "entry";
     private static final String GROUPED_RESULT = "groupedResult";
     private static final String SUGGESTIONS = "suggestions";
     private static final String PAGE = "page";
     private static final String MAX_PAGE = "maxpage";
     private static final String CLUSTER = "cluster";
-
     private static final String MAIL_SUBJECT = "subject";
     private static final String MAIL_SUBJECT_PLACEHOLDER = "[SEARCH] No results found for ";
     private static final String MAIL_MESSAGE = "message";
-
-    // PAGES REDIRECT
-    private static final String PAGE_INTERACTOR = "search/interactors";
-
-    private static final String PAGE_NO_DETAILS_FOUND = "search/noDetailsFound";
     private static final String PAGE_NO_RESULTS_FOUND = "search/noResultsFound";
     private static final String PAGE_EBI_ADVANCED = "search/advanced";
     private static final String PAGE_EBI_SEARCHER = "search/results";
+    private static final String TARGETS = "targets";
+    private final Integer releaseNumber;
+
+    private SearchService searchService;
+    private MailService mailService;
 
     @Value("${mail.error.dest}")
     private String mailErrorDest; // E
@@ -76,12 +75,17 @@ class SearchController {
     @Value("${mail.support.dest}")
     private String mailSupportDest; // W
 
+    @Autowired
+    public SearchController(GeneralService generalService) {
+        releaseNumber = generalService.getDBVersion();
+    }
+
     /**
      * Method for autocompletion
      *
      * @param tagName query snippet to be autocompleted
      * @return List of Suggestions
-     * @throws SolrSearcherException
+     * @throws SolrSearcherException could not query SolR
      */
     @RequestMapping(value = "/getTags", method = RequestMethod.GET)
     @ResponseBody
@@ -94,7 +98,7 @@ class SearchController {
      *
      * @param model SpringModel
      * @return Advanced view
-     * @throws SolrSearcherException
+     * @throws SolrSearcherException could not query SolR
      */
     @RequestMapping(value = "/advanced", method = RequestMethod.GET)
     public String gotoAdv(ModelMap model) throws SolrSearcherException {
@@ -103,32 +107,8 @@ class SearchController {
         model.addAttribute(TYPES_FACET, facetMapping.getTypeFacet());
         model.addAttribute(KEYWORDS_FACET, facetMapping.getKeywordFacet());
         model.addAttribute(COMPARTMENTS_FACET, facetMapping.getCompartmentFacet());
-        model.addAttribute(TITLE, "advanced Search");
+        model.addAttribute(TITLE, "Advanced Search");
         return PAGE_EBI_ADVANCED;
-    }
-
-    /**
-     * Shows detailed information of an entry
-     *
-     * @param id    StId or DbId
-     * @param model SpringModel
-     * @return Detailed page
-     * @throws SolrSearcherException
-     */
-    @RequestMapping(value = "/detail/interactor/{id:.*}", method = RequestMethod.GET)
-    public String interactorDetail(@PathVariable String id, ModelMap model) throws SolrSearcherException {
-
-        InteractorEntry entry = searchService.getInteractionDetail(id);
-        if (entry != null) {
-            model.addAttribute(ENTRY, entry);
-            model.addAttribute(TITLE, entry.getName());
-            infoLogger.info("Search request for id: {} was found", id);
-            return PAGE_INTERACTOR;
-        } else {
-            autoFillDetailsPage(model, id);
-            infoLogger.info("Search request for id: {} was not found", id);
-            return PAGE_NO_DETAILS_FOUND;
-        }
     }
 
     /**
@@ -138,7 +118,7 @@ class SearchController {
      * @param page                                  page number
      * @param model                                 SpringModel
      * @return main search result page
-     * @throws SolrSearcherException
+     * @throws SolrSearcherException could not query SolR
      */
     @RequestMapping(value = "/query", method = RequestMethod.GET)
     public String search(@RequestParam String q,
@@ -148,7 +128,9 @@ class SearchController {
                          @RequestParam(required = false) List<String> compartments,
                          @RequestParam(required = false) Boolean cluster,
                          @RequestParam(required = false) Integer page,
-                         ModelMap model) throws SolrSearcherException {
+                         ModelMap model,
+                         HttpServletRequest request,
+                         HttpServletResponse response) throws SolrSearcherException {
 
         if (q != null && !q.isEmpty()) {
 
@@ -168,13 +150,11 @@ class SearchController {
             model.addAttribute(COMPARTMENTS, compartments);
             model.addAttribute(KEYWORDS, keywords);
             model.addAttribute(CLUSTER, cluster);
-            model.addAttribute(CLUSTER, cluster);
             model.addAttribute(PAGE, page);
 
-            Query queryObject = new Query(q, species, types, compartments, keywords);
+            Query queryObject = new Query(q, species, types, compartments, keywords, getReportInformation(request));
             SearchResult searchResult = searchService.getSearchResult(queryObject, rowCount, page, cluster);
-
-            if (searchResult != null) {
+            if (searchResult != null && (searchResult.getTargetResults() == null || searchResult.getTargetResults().isEmpty())) {
                 model.addAttribute(SPECIES_FACET, searchResult.getFacetMapping().getSpeciesFacet());
                 model.addAttribute(TYPES_FACET, searchResult.getFacetMapping().getTypeFacet());
                 model.addAttribute(KEYWORDS_FACET, searchResult.getFacetMapping().getKeywordFacet());
@@ -182,14 +162,21 @@ class SearchController {
                 model.addAttribute(MAX_PAGE, (int) Math.ceil(searchResult.getResultCount() / searchResult.getRows()));
                 model.addAttribute(GROUPED_RESULT, searchResult.getGroupedResult());
                 infoLogger.info("Search request for query: {} was found", q);
+
                 return PAGE_EBI_SEARCHER;
             } else {
                 // Generating spell check suggestions if no faceting information was found, while using no filters
                 model.addAttribute(SUGGESTIONS, searchService.getSpellcheckSuggestions(q));
             }
+
+            if (searchResult != null && !searchResult.getTargetResults().isEmpty()) {
+                model.addAttribute(TARGETS, searchResult.getTargetResults().stream().filter(TargetResult::isTarget).map(TargetResult::getTerm).collect(Collectors.toList()));
+            }
         }
+
         autoFillContactForm(model, q);
         infoLogger.info("Search request for query: {} was NOT found", q);
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         return PAGE_NO_RESULTS_FOUND;
     }
 
@@ -202,21 +189,20 @@ class SearchController {
                           @RequestParam String exception,
                           @RequestParam String url,
                           @RequestParam String subject,
-                          @RequestParam String source) throws Exception {
-
+                          @RequestParam String source) {
+        if (StringUtils.isNotBlank(contactName)) {
+            contactName = contactName.trim();
+            message = message.concat("\n\n--\n").concat(contactName.trim());
+        }
         String to = mailSupportDest;
         if (source.equals("E")) {
             to = mailErrorDest;
-            message = message.concat("\n\n URL: " + url);
-            message = message.concat("\n\n Exception: " + exception);
-            subject = "Unexpected error occurred.";
-        }
-        if(StringUtils.isNotBlank(contactName)) {
-            contactName = contactName.trim();
-            message = message.concat("--\n").concat(contactName.trim());
+            subject = "Unexpected error occurred [" + url + "]";
+            message = message.concat("\nFailed URL: " + url);
+            message = message.concat("\nException: " + exception.replaceAll("##C##","\n\t\t").replaceAll("#", "\n\t"));
         }
         // Call email service.
-        mailService.send(to, mailAddress, subject, message, sendEmailCopy, contactName);
+        mailService.send(contactName, mailAddress, to, subject, message, sendEmailCopy);
         return "success";
     }
 
@@ -234,11 +220,6 @@ class SearchController {
         model.addAttribute(TITLE, "No results found for " + search);
     }
 
-    private void autoFillDetailsPage(ModelMap model, String search) {
-        model.addAttribute("search", search);
-        model.addAttribute(TITLE, "No details found for " + search);
-    }
-
     @Autowired
     public void setSearchService(SearchService searchService) {
         this.searchService = searchService;
@@ -247,5 +228,23 @@ class SearchController {
     @Autowired
     public void setMailService(MailService mailService) {
         this.mailService = mailService;
+    }
+
+    /**
+     * Extra information to be sent to report service in order to store potential target
+     */
+    private Map<String, String> getReportInformation(HttpServletRequest request) {
+        if (request == null) return null;
+
+        Map<String, String> result = new HashMap<>();
+        result.put("user-agent", request.getHeader("User-Agent"));
+        String remoteAddr = request.getHeader("X-FORWARDED-FOR"); // Client IP
+        if (StringUtils.isEmpty(remoteAddr)) {
+            remoteAddr = request.getRemoteAddr();
+        }
+        result.put("ip-address", remoteAddr);
+        result.put("release-version", releaseNumber.toString());
+
+        return result;
     }
 }
